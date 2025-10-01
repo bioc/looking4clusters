@@ -205,10 +205,6 @@ addcluster <- function(object, data, name=NULL, groupStatsBy=FALSE,
 }
 
 writehtml <- function(object, includeData, directory){
-    if(!inherits(object,"looking4clusters")){
-        stop("object: must be a 'looking4clusters' object")
-    }
-
     datadir <- file.path(directory,"data")
     dir.create(datadir)
 
@@ -247,18 +243,24 @@ writehtml <- function(object, includeData, directory){
     unlink(datadir, recursive = TRUE)
 }
 
-l4chtml <- function(object, includeData = FALSE, directory = NULL){
-    if(is.null(directory)){
-        directory <- tempfile()
-        dir.create(directory)
-        writehtml(object, includeData, directory)
-        browseURL(normalizePath(indexfile(directory)))
+l4chtml <- function(x, includeData = FALSE, directory = NULL){
+    if(is.character(x) && file.exists(x) && grepl("\\.json$",x)){
+        l4cjson(x,directory)
+    }else if(inherits(x,"looking4clusters")){
+        if(is.null(directory)){
+            directory <- tempfile()
+            dir.create(directory)
+            writehtml(x, includeData, directory)
+            browseURL(normalizePath(indexfile(directory)))
+        }else{
+            create_l4c_directory(directory)
+            writehtml(x, includeData, directory)
+            text <- paste0("The graph has been generated in the \"",
+            normalizePath(directory),"\" path.")
+            message(text)
+        }
     }else{
-        create_l4c_directory(directory)
-        writehtml(object, includeData, directory)
-        text <- paste0("The graph has been generated in the \"",
-        normalizePath(directory),"\" path.")
-        message(text)
+        stop("x: must be a 'looking4clusters' object or a JSON file")
     }
 }
 
@@ -346,5 +348,49 @@ looking4clusters <- function(data, groups = NULL, assay = NULL,
         l4c(data, groups, components, running_all,
         distance, agglomeration, selectedk,
         perplex, maxIter, threads, force_execution)
+    }
+}
+
+l4cjson <- function(json, directory = NULL){
+    writehtmlfromjson <- function(json,directory){
+        data <- jsonlite::fromJSON(json)
+
+        www <- wwwDirectory()
+        file.copy(file.path(www,"css"), directory, recursive=TRUE)
+        file.copy(file.path(www,"js"), directory, recursive=TRUE)
+        file.copy(file.path(www,"font"), directory, recursive=TRUE)
+        file.copy(file.path(www,"images"), directory, recursive=TRUE)
+
+        html <- scan(file = file.path(www, "template.html"),
+            what = character(0), sep = "\n", quiet = TRUE)
+        html <- gsub("<!--name-->", basename(directory), html)
+
+        con <- file(indexfile(directory), "a", encoding = "UTF-8")
+        write(html[seq_len(which(html=="<!--data-->")-1)],con,append=TRUE)
+
+        for(pre in names(data)){
+            txt <- data[[pre]]
+            if(!is.character(txt)){
+                txt <- jsonlite::toJSON(txt)
+            }
+            write(c(paste0("<pre class=\"",pre,"\">"),
+                txt,"</pre>"),con,append=TRUE)
+        }
+
+        write(html[(which(html=="<!--data-->")+1):length(html)],con,append=TRUE)
+        close(con)
+    }
+
+    if(is.null(directory)){
+        directory <- tempfile()
+        dir.create(directory)
+        writehtmlfromjson(json, directory)
+        browseURL(normalizePath(indexfile(directory)))
+    }else{
+        create_l4c_directory(directory)
+        writehtmlfromjson(json, directory)
+        text <- paste0("The graph has been generated in the \"",
+        normalizePath(directory),"\" path.")
+        message(text)
     }
 }

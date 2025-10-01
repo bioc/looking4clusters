@@ -1,7 +1,5 @@
 l4c_Seurat <- function(object, assay = NULL){
-    if(!BiocBaseUtils::checkInstalled("Seurat")){
-        stop("Install 'Seurat' to use this function.")
-    }
+    BiocBaseUtils::checkInstalled("Seurat")
 
     joinassays <- FALSE
     if(is.null(assay)){

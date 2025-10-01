@@ -1,7 +1,7 @@
 # NMF: Nonnegative Matrix Factorization
 
 run_nmf <- function(object){
-    if(BiocBaseUtils::checkInstalled("NMF")){
+    if(requireNamespace("NMF",quietly=TRUE)){
         data <- object$data
         if(!sum(colSums(data)==0)){
             if(!sum(rowSums(data)==0)){

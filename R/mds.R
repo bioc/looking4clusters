@@ -5,7 +5,7 @@ run_mds <- function(object,threads=NULL){
     data <- object$data
 
     # Distance matrix
-    if(BiocBaseUtils::checkInstalled("parallelDist")){
+    if(requireNamespace("parallelDist",quietly=TRUE)){
         distMatrix <- parallelDist::parDist(data,
             method="canberra", threads=threads)
     }else{

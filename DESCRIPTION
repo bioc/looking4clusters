@@ -1,7 +1,7 @@
 Package: looking4clusters
 Type: Package
-Version: 0.99.3
-Date: 2025-06-30
+Version: 0.99.4
+Date: 2025-10-01
 Title: Interactive Visualization of scRNA-Seq
 Description: Enables the interactive visualization of dimensional
     reduction, clustering, and cell properties for scRNA-Seq results. It
@@ -22,7 +22,7 @@ Description: Enables the interactive visualization of dimensional
 License: GPL-2 | GPL-3
 Depends: R (>= 4.5.0)
 Imports: stats, utils, SummarizedExperiment, SingleCellExperiment,
-    BiocBaseUtils
+    BiocBaseUtils, jsonlite
 Suggests: knitr, rmarkdown, Seurat, parallelDist, uwot, NMF, fpc, dendextend,
     cluster, Rtsne, scRNAseq, Matrix
 VignetteBuilder: knitr

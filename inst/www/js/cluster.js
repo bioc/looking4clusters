@@ -28,17 +28,30 @@ window.onscroll = function(){
 
 window.onload = function(){
 
-  d3.select(".editable i.icon-sli-pencil").on("click", edit_name);
-  d3.select(".editable i.icon-newspaper").on("click", generate_report);
-  d3.select(".selectsamples").on("click",selectsamples);
-  d3.select("body").on('click',function(){
-    d3.selectAll("ul.autocomplete-list").classed("hidden",true);
-    d3.select("div.dropdown-list").remove();
-  })
+    d3.select(".editable i.icon-sli-pencil").on("click", edit_name);
+    d3.select(".editable i.icon-newspaper").on("click", generate_report);
+    d3.select(".editable i.icon-download").on("click", save_json);
+    d3.select(".selectsamples").on("click",selectsamples);
+    d3.select("body").on('click',function(){
+      d3.selectAll("ul.autocomplete-list").classed("hidden",true);
+      d3.select("div.dropdown-list").remove();
+    });
+
+    var pre;
+
+    pre = d3.select("pre.savedColors");
+    if(!pre.empty()){
+      savedColors = JSON.parse(pre.text().trim());
+    }
+
+    pre = d3.select("pre.savedShapes");
+    if(!pre.empty()){
+      savedShapes = JSON.parse(pre.text().trim());
+    }
 
     samples = d3.select("pre.samples_txt").text().trim().split("\n");
 
-    var pre = d3.select("pre.variables_txt");
+    pre = d3.select("pre.variables_txt");
     if(!pre.empty()){
       variables = pre.text().trim().split("\n");
 
@@ -120,7 +133,7 @@ window.onload = function(){
 
     list_myGroups();
 
-    if(d3.keys(myGroups).length)
+    if(!d3.keys(savedColors).length && d3.keys(myGroups).length)
       d3.select("div.myGroups i.colorgroups").node().click();
 
   d3.select("input[type=radio][name=vs][value=all]").property("checked","checked");
@@ -137,6 +150,31 @@ window.onload = function(){
 
   displayGroupBySelect();
 
+  if(savedColors.hasOwnProperty('numericData')){
+    applyVariableColor(savedColors['numericData']);
+  }
+
+  var i = 0;
+  do{
+    pre = d3.select("pre.newPlot_"+i);
+    i++;
+    if(!pre.empty()){
+      var newplotvars = pre.text().trim().split(",");
+      new_graph_data(newplotvars[0],newplotvars[1]);
+    }
+  }while(!pre.empty())
+
+  pre = d3.select("pre.heatmap");
+  if(!pre.empty()){
+    heatmap = pre.text().trim().split(",").map(function(d){ return +d; });
+    renderheatmap();
+  }
+
+  pre = d3.select("pre.violin");
+  if(!pre.empty()){
+    violin = +pre.text().trim();
+    renderviolin();
+  }
 } // window load end
 
 function getClustersFromData(name,ncluster){
@@ -217,17 +255,7 @@ function new_graph(){
         if(variable1===null || variable2===null){
           alert("Some variables are missing!");
         }else{
-          var data = samples.map(function(){ return [null,null]; });
-          table.forEach(function(d){
-            if(d[1]==+variable1){
-              data[d[0]][0] = d[2];
-            }
-            if(d[1]==+variable2){
-              data[d[0]][1] = d[2];
-            }
-          });
-          renderplot(variables[+variable1]+" vs "+variables[+variable2],
-                     data, variables[+variable1], variables[+variable2]);
+          new_graph_data(variable1,variable2);
         }
       }else
         alert("Wait until data are loaded.");
@@ -236,6 +264,23 @@ function new_graph(){
     d3.selectAll("div.newGraphs > div > input")
       .attr("key",null)
       .property("value","");
+}
+
+function new_graph_data(variable1,variable2){
+    variable1 = +variable1;
+    variable2 = +variable2;
+    var data = samples.map(function(){ return [null,null]; });
+    table.forEach(function(d){
+      if(d[1]==variable1){
+        data[d[0]][0] = d[2];
+      }
+      if(d[1]==variable2){
+        data[d[0]][1] = d[2];
+      }
+    });
+    var title = variables[variable1]+" vs "+variables[variable2];
+    renderplot(title, data, variables[variable1], variables[variable2]);
+    d3.select(".div-plot."+sanitize_names(title)).attr("custom",[variable1,variable2].join(","));
 }
 
 function applyVariableColor(variable){
@@ -251,8 +296,7 @@ function applyVariableColor(variable){
             .domain(d3.extent(data.filter(function(d){ return d!==null; })))
 
           var div = d3.select("div.variableColor");
-          div.select(".color-scale").remove();
-
+          reset_color_legends();
           var divScale = renderColorScale(div,colors);
           divScale.insert("h5",":first-child")
             .attr("class","margin-top-10")
@@ -819,6 +863,7 @@ function renderviolin(){
       .style("float","left")
       .on("click",function(){
         div.remove();
+        violin = -1;
       })
 
   var x = d3.scale.ordinal()
@@ -911,7 +956,6 @@ function renderviolin(){
   d3.selectAll(".myGroups > ul > li > svg > path").each(function(){
     groupColors.push(d3.select(this).style("fill"));
   });
-  console.log(groupColors);
 
   g.selectAll("groupviolin")
     .data(sumstat)
@@ -966,6 +1010,7 @@ function renderheatmap(){
       .style("float","left")
       .on("click",function(){
         div.remove();
+        heatmap = [];
       })
 
   var canvas = div.append("canvas")
@@ -1248,7 +1293,7 @@ function list_myGroups(vis){
     d3.select("div.myGroups i.downloadgroups")
       .style("display","inline")
       .on("click",function(){
-        display_list("<ul><li>tsv</li><li>xlsx</li></ul>",function(){
+        display_list("<ul><li>tsv</li><li>xlsx</li><li>R script</li></ul>",function(){
           var method = d3.select(this).text(),
               name = d3.select("h2.editable > span").text();
           if(method=="tsv"){
@@ -1272,6 +1317,22 @@ function list_myGroups(vis){
               }
             });
             downloadExcel({sheet1:data},name);
+          }
+          if(method=="R script"){
+            var groupsvector = [], samplesvector = [];
+            d3.keys(myGroups).forEach(function(d){
+              if(myGroups[d].length){
+                myGroups[d].forEach(function(e){
+                  groupsvector.push(d);
+                  samplesvector.push(samples[e][0]);
+                })
+              }
+            });
+            var txt = "myGroups <- data.frame(\n"
++ "group=c('"+groupsvector.join("','")+"'),\n"
++ "sample=c('"+samplesvector.join("','")+"')\n"
++ ")";
+            downloadFile(name+".R",txt);
           }
         });
       })
@@ -1310,7 +1371,6 @@ function clickSelectDots(data){
 }
 
 function clickChangeScaleColors(div, name, colors, data){
-        reset_color_legends();
         savedColors["numericData"] = name;
         samples.forEach(function(d,i){
           if(data[i]!==null){
@@ -1413,8 +1473,11 @@ function changeColor(data,color){
 }
 
 function changeShape(data,shape){
+    if(Array.isArray(shape)){
+      shape = shape[0];
+    }
     data.forEach(function(i){
-      samples[i][3] = symbolTypes.indexOf(shape);;
+      samples[i][3] = symbolTypes.indexOf(shape);
     })
     update_shape();
 }
@@ -1436,6 +1499,7 @@ function update_shape(){
 function reset_color_legends(){
   d3.selectAll("ul.i-options > li > svg > path")
     .style("fill",d3.select("ul.i-options > li").style("color"))
+  d3.select("div.sidebar > div.variableColor > .color-scale").remove();
   savedColors = {};
 }
 
@@ -1660,9 +1724,9 @@ function input_autocomplete(id,wordlist,enterFunc){
 function search_pattern_keydown(){
   if(d3.event.which == 9 || d3.event.which == 13){
     var self = d3.select(this),
-        value = self.property("value");
+        value = new RegExp(self.property("value"),'i');
     samples.forEach(function(d,i){
-        d[1] = d[1] | d[0].toLowerCase().indexOf(value.toLowerCase())!=-1;
+        d[1] = d[1] | d[0].match(value);
     });
     select_dots();
     self.property("value","");
@@ -1782,6 +1846,29 @@ function getDimReduction(name){
       dimData[name] = data;
       renderplot(name,data,labels[0],labels[1]);
     }
+}
+
+function save_json(){
+  var json = {};
+  d3.selectAll("body > div > pre").each(function(){
+    var self = d3.select(this),
+        name = self.attr("class"),
+        txt = self.text();
+    json[name] = txt.trim();
+  })
+  json['savedColors'] = savedColors;
+  json['savedShapes'] = savedShapes;
+  d3.selectAll(".div-plot[custom]").each(function(d,i){
+    var custom = d3.select(this).attr("custom");
+    json['newPlot_'+i] = String(custom);
+  })
+  if(heatmap.length){
+    json['heatmap'] = String(heatmap.join(","));
+  }
+  if(violin!=-1){
+    json['violin'] = String(violin);
+  }
+  downloadFile(d3.select("h2.editable > span").text()+".json",JSON.stringify(json));
 }
 
 function generate_report(){

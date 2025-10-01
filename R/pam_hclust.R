@@ -11,7 +11,7 @@
 
 run_pam_hclust <- function(object, distance="euclidean",
         agglomeration="complete", selectedk=NULL, threads=NULL){
-    if(BiocBaseUtils::checkInstalled("fpc")){
+    if(requireNamespace("fpc",quietly=TRUE)){
 
 data <- object$data
 
@@ -59,7 +59,7 @@ run_pam <- function(selectedk,dissimilarity,kmin,kmax,iter,data){
 ## PAM:
 allClassfPam <- NULL
 numberClustersPAM <- NULL
-if(BiocBaseUtils::checkInstalled("cluster")){
+if(requireNamespace("cluster",quietly=TRUE)){
     if(is.null(selectedk)){
         # Calinski Harabasz
         pamk<-fpc::pamk(dissimilarity, krange=kmin:kmax, criterion="ch",
@@ -98,7 +98,7 @@ get_dissimilarity <- function(distance,data,threads){
             "canberra", "binary", "minkowski"))){
         distance <- "euclidean"
     }
-    if(BiocBaseUtils::checkInstalled("parallelDist")){
+    if(requireNamespace("parallelDist",quietly=TRUE)){
         dissimilarity <- parallelDist::parDist(data,
             method=distance, threads=threads)
     }else{
@@ -111,7 +111,7 @@ run_hclust <- function(agglomeration,dissimilarity,kmin,kmax,selectedk,iter){
 ## HCLUST:
 Hclusters <- NULL
 numberClustersHclust <- NULL
-if(BiocBaseUtils::checkInstalled("dendextend")){
+if(requireNamespace("dendextend",quietly=TRUE)){
 
 if(!(agglomeration %in% c("ward.D", "ward.D2", "single", "complete",
         "average", "mcquitty", "median", "centroid")))
